@@ -1,0 +1,18 @@
+# Node modules
+node_modules/
+npm-debug.log
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+*.msi
+
+# Environment variables
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
