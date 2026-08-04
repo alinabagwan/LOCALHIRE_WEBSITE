@@ -250,7 +250,7 @@ window.localHireAPI = {
       const res = await fetch(`${API_BASE_URL}/applications`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ jobId, quote, message })
+        body: JSON.stringify({ jobId, job: jobId, quote, message })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -536,14 +536,20 @@ window.localHireAPI = {
           headers: getAuthHeaders(),
           body: JSON.stringify({ jobId })
         });
+        const data = await res.json().catch(() => null);
+
         if (res.ok) {
-          const data = await res.json();
-          return data;
+          return data || { success: true };
         }
+
+        return {
+          success: false,
+          message: data?.message || 'Escrow release failed'
+        };
       } catch (err) {
         console.warn('[API Client] Server offline for releaseEscrow, using local mode');
       }
-      return { success: false };
+      return { success: false, message: 'Escrow release failed' };
     },
 
     getJobEscrow: async (jobId) => {

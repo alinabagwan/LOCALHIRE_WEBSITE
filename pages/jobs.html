@@ -91,6 +91,7 @@
     </div>
 
     <script src="../js/data.js"></script>
+    <script src="../js/api.js"></script>
     <script src="../js/app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -127,15 +128,16 @@
                 catSelect.value = user.category;
             }
 
-            function renderFeed() {
-                const allJobs = window.localHireApp.getJobs();
-                const myApplications = window.localHireApp.getApplicationsForWorker(user.id).map(a => a.jobId);
+            async function renderFeed() {
+                const allJobs = await window.localHireAPI.getJobs();
+                const myApps = await window.localHireAPI.getWorkerApplications();
+                const myApplicationJobIds = (myApps || []).map(a => a.jobId).filter(Boolean);
                 
                 const filterQ = qInput.value.toLowerCase();
                 const filterCat = catSelect.value;
 
                 // Filter out jobs worker has already applied to
-                const availableJobs = allJobs.filter(j => !myApplications.includes(j.id));
+                const availableJobs = allJobs.filter(j => !myApplicationJobIds.includes(j.id));
                 
                 const filtered = availableJobs.filter(j => {
                     const matchQ = j.title.toLowerCase().includes(filterQ) || j.description.toLowerCase().includes(filterQ);
@@ -170,7 +172,7 @@
                 }
             }
 
-            applyBtn.addEventListener('click', renderFeed);
+            applyBtn.addEventListener('click', () => renderFeed());
 
             // Event Delegation for dynamically generated apply buttons
             feedContainer.addEventListener('click', (e) => {
@@ -193,24 +195,18 @@
                 applyForm.reset();
             });
 
-            applyForm.addEventListener('submit', (e) => {
+            applyForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
                 const jobId = applyJobIdInput.value;
                 const quote = document.getElementById('apply-quote').value;
                 const message = document.getElementById('apply-message').value;
                 
-                const appObj = {
-                    jobId,
-                    workerId: user.id,
-                    workerName: user.name,
-                    workerAvatar: user.avatarUrl,
-                    quote,
-                    message,
-                    status: 'Pending'
-                };
-                
-                window.localHireApp.saveApplication(appObj);
+                const result = await window.localHireAPI.createApplication(jobId, quote, message);
+                if (!result.success) {
+                    alert(result.message || 'Could not submit application.');
+                    return;
+                }
                 
                 // Close modal and refresh feed
                 applyModal.style.display = 'none';

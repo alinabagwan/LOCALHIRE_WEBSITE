@@ -134,7 +134,10 @@
           result = await window.localHireAPI.escrow.releaseEscrow(jobId);
         }
 
-        if (!result || !result.success) {
+        let releaseSucceeded = !!(result && result.success);
+        let releaseMessage = '🎉 Job marked as Completed! Escrow funds released to worker.';
+
+        if (!releaseSucceeded) {
           // Local storage fallback
           const escrows = getLocalEscrows();
           const target = escrows.find(e => (e.jobId === jobId || e.job === jobId) && e.status === 'Escrow_Held');
@@ -151,12 +154,14 @@
             job.status = 'Completed';
             localStorage.setItem('localHire_jobs', JSON.stringify(jobs));
           }
+
+          releaseMessage = result && result.message ? result.message : 'Could not release escrow payment.';
         }
 
-        alert('🎉 Job marked as Completed! Escrow funds released to worker.');
+        alert(releaseMessage);
         if (typeof onCompleteCallback === 'function') {
-          onCompleteCallback(true);
-        } else {
+          onCompleteCallback(releaseSucceeded, releaseMessage);
+        } else if (releaseSucceeded) {
           window.location.reload();
         }
       } catch (err) {

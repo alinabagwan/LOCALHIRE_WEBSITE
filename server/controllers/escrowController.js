@@ -65,11 +65,15 @@ exports.releaseEscrow = async (req, res) => {
   try {
     const { jobId } = req.body;
 
+    console.log('[Escrow Controller] ReleaseEscrow request body', { jobId, userId: req.user?._id?.toString?.() });
+
     if (!jobId) {
       return res.status(400).json({ success: false, message: 'Job ID is required' });
     }
 
     const escrow = await EscrowTransaction.findOne({ job: jobId, status: 'Escrow_Held' });
+    console.log('[Escrow Controller] ReleaseEscrow lookup result', { jobId, escrow: escrow ? escrow.toObject() : null });
+
     if (!escrow) {
       return res.status(404).json({ success: false, message: 'No active held escrow transaction found for this job' });
     }
@@ -81,14 +85,94 @@ exports.releaseEscrow = async (req, res) => {
 
     escrow.status = 'Released';
     escrow.releasedAt = new Date();
-    await escrow.save();
+
+    console.log('[Escrow Controller] ReleaseEscrow: about to save escrow', {
+      jobId,
+      escrowId: escrow._id,
+      currentStatus: escrow.status
+    });
+
+    try {
+      await escrow.save();
+      console.log('[Escrow Controller] ReleaseEscrow: escrow saved successfully', {
+        jobId,
+        escrowId: escrow._id,
+        status: escrow.status
+      });
+    } catch (saveError) {
+      console.error('[Escrow Controller] ReleaseEscrow save failed:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save escrow release',
+        error: saveError.message
+      });
+    }
 
     // Mark job as completed
-    const job = await Job.findById(jobId);
-    if (job) {
-      job.status = 'Completed';
-      await job.save();
+    console.log('[Escrow Controller] ReleaseEscrow: attempting to find job', { jobId });
+    
+    let job;
+    try {
+      job = await Job.findById(jobId);
+      console.log('[Escrow Controller] ReleaseEscrow: job lookup result', {
+        jobId,
+        jobFound: !!job,
+        jobId_returned: job?._id?.toString?.() || 'N/A',
+        currentJobStatus: job?.status || 'N/A'
+      });
+    } catch (jobLookupError) {
+      console.error('[Escrow Controller] ReleaseEscrow: Job lookup error:', jobLookupError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to lookup job for completion',
+        error: jobLookupError.message
+      });
     }
+
+    if (!job) {
+      console.warn('[Escrow Controller] ReleaseEscrow: Job not found after lookup', { jobId });
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found for completion update'
+      });
+    }
+
+    // Update job status to Completed
+    console.log('[Escrow Controller] ReleaseEscrow: updating job status', {
+      jobId,
+      oldStatus: job.status,
+      newStatus: 'Completed'
+    });
+
+    job.status = 'Completed';
+
+    try {
+      await job.save();
+      console.log('[Escrow Controller] ReleaseEscrow: job saved successfully', {
+        jobId,
+        updatedStatus: job.status,
+        savedAt: new Date().toISOString()
+      });
+    } catch (jobSaveError) {
+      console.error('[Escrow Controller] ReleaseEscrow: Job save failed:', {
+        jobId,
+        error: jobSaveError.message,
+        stack: jobSaveError.stack
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save job completion',
+        error: jobSaveError.message
+      });
+    }
+
+    // Send success response
+    console.log('[Escrow Controller] ReleaseEscrow: sending success response', {
+      jobId,
+      escrowId: escrow._id,
+      escrowStatus: escrow.status,
+      jobStatus: job.status
+    });
 
     res.json({
       success: true,

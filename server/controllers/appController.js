@@ -6,7 +6,15 @@ const Job = require('../models/Job');
 // @access  Private (Worker)
 exports.createApplication = async (req, res) => {
   try {
-    const { jobId, quote, message } = req.body;
+    const jobId = req.body.jobId || req.body.job;
+    const { quote, message } = req.body;
+
+    console.error('[Application Controller] createApplication payload:', {
+      jobId,
+      quote: quote || '',
+      message: message || '',
+      workerId: req.user ? req.user.id : null
+    });
 
     const jobExists = await Job.findById(jobId);
     if (!jobExists) {
@@ -45,7 +53,10 @@ exports.createApplication = async (req, res) => {
     });
   } catch (error) {
     console.error('[Application Controller] createApplication error:', error);
-    res.status(500).json({ success: false, message: 'Server error submitting application' });
+    res.status(500).json({
+      success: false,
+      message: error && error.message ? error.message : 'Server error submitting application'
+    });
   }
 };
 

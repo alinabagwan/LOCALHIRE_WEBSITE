@@ -215,7 +215,7 @@
                 const modalList = document.getElementById('modal-apps-list');
 
                 // Bind View Quotes buttons using event delegation since they are added dynamically
-                viewMyJobs.addEventListener('click', (e) => {
+                viewMyJobs.addEventListener('click', async (e) => {
                     const btn = e.target.closest('.view-quotes-btn');
                     if (btn) {
                         const jobId = btn.getAttribute('data-job-id');
@@ -224,8 +224,8 @@
                         modalTitle.textContent = `For: ${jobTitle}`;
                         modalList.innerHTML = '';
                         
-                        const apps = window.localHireApp.getApplicationsForJob(jobId);
-                        if (apps.length === 0) {
+                        const apps = await window.localHireAPI.getApplicationsForJob(jobId);
+                        if (!apps || apps.length === 0) {
                             modalList.innerHTML = `<p class="text-muted" style="text-align: center; padding: 2rem;">No quotes received yet.</p>`;
                         } else {
                             apps.forEach(app => {
@@ -233,14 +233,15 @@
                                     <div class="glass-card" style="padding: 1.5rem; background: var(--surface-light); border: 1px solid var(--border-light);">
                                         <div class="flex justify-between items-start" style="margin-bottom: 1rem;">
                                             <div class="flex items-center gap-3">
-                                                <img src="${app.workerAvatar}" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--primary);">
+                                                <img src="${app.workerAvatar || ''}" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--primary);">
                                                 <div>
-                                                    <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">${app.workerName}</h4>
+                                                    <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">${app.workerName || 'Worker'}</h4>
                                                     <a href="profile.html?id=${app.workerId}" style="font-size: 0.8rem; color: var(--primary); text-decoration: none;">View Profile</a>
                                                 </div>
                                             </div>
                                             <div class="flex flex-col items-end">
                                                 <span style="font-size: 1.2rem; font-weight: bold; color: var(--secondary);">${app.quote}</span>
+                                                <span class="badge" style="margin-top: 0.25rem;">${app.status || 'Pending'}</span>
                                             </div>
                                         </div>
                                         <p style="font-size: 0.95rem; margin: 0; color: var(--text-main); padding: 1rem; background: rgba(0,0,0,0.05); border-radius: 8px;">"${app.message}"</p>
@@ -295,39 +296,41 @@
 
             // Load Applications (if Worker)
             if (user.role === 'Worker') {
-                const viewAppsContainer = document.getElementById('apps-container');
-                const noApps = document.getElementById('no-apps');
-                
-                const myApps = window.localHireApp.getApplicationsForWorker(user.id);
-                if (myApps.length === 0) {
-                    viewAppsContainer.style.display = 'none';
-                    noApps.style.display = 'block';
-                } else {
-                    viewAppsContainer.style.display = 'grid';
-                    noApps.style.display = 'none';
-                    viewAppsContainer.innerHTML = '';
+                (async () => {
+                    const viewAppsContainer = document.getElementById('apps-container');
+                    const noApps = document.getElementById('no-apps');
                     
-                    const allJobs = window.localHireApp.getJobs();
-                    
-                    myApps.forEach(app => {
-                        const job = allJobs.find(j => j.id === app.jobId);
-                        if (job) {
-                            viewAppsContainer.innerHTML += `
-                                <div class="glass-card flex-col gap-3">
-                                    <div class="flex justify-between items-start">
-                                        <h4 style="margin: 0; color: var(--primary);">${job.title}</h4>
-                                        <span class="badge badge-primary">Applied</span>
+                    const myApps = await window.localHireAPI.getWorkerApplications();
+                    if (!myApps || myApps.length === 0) {
+                        viewAppsContainer.style.display = 'none';
+                        noApps.style.display = 'block';
+                    } else {
+                        viewAppsContainer.style.display = 'grid';
+                        noApps.style.display = 'none';
+                        viewAppsContainer.innerHTML = '';
+                        
+                        const allJobs = window.localHireApp.getJobs();
+                        
+                        myApps.forEach(app => {
+                            const job = allJobs.find(j => j.id === app.jobId);
+                            if (job) {
+                                viewAppsContainer.innerHTML += `
+                                    <div class="glass-card flex-col gap-3">
+                                        <div class="flex justify-between items-start">
+                                            <h4 style="margin: 0; color: var(--primary);">${job.title}</h4>
+                                            <span class="badge badge-primary">${app.status || 'Pending'}</span>
+                                        </div>
+                                        <p class="text-muted" style="margin: 0; font-size: 0.9rem;">To: ${job.customerName}</p>
+                                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-light);">
+                                            <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-muted);">Your Quote</p>
+                                            <p style="margin: 0; font-weight: bold; color: var(--secondary); font-size: 1.1rem;">${app.quote}</p>
+                                        </div>
                                     </div>
-                                    <p class="text-muted" style="margin: 0; font-size: 0.9rem;">To: ${job.customerName}</p>
-                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-light);">
-                                        <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-muted);">Your Quote</p>
-                                        <p style="margin: 0; font-weight: bold; color: var(--secondary); font-size: 1.1rem;">${app.quote}</p>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    });
-                }
+                                `;
+                            }
+                        });
+                    }
+                })();
             }
         });
     </script>

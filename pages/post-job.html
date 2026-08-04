@@ -84,6 +84,7 @@
     </div>
 
     <script src="../js/data.js"></script>
+    <script src="../js/api.js"></script>
     <script src="../js/app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -104,7 +105,7 @@
                 return;
             }
 
-            form.addEventListener('submit', (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 // Build job object
@@ -128,8 +129,7 @@
                     customerId: user.id
                 };
 
-                // Save to local storage
-                window.localHireApp.saveJob(newJob);
+                await window.localHireAPI.saveJob(newJob);
 
                 // Show success modal
                 modal.style.display = 'flex';
